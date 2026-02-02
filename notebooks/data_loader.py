@@ -1,4 +1,5 @@
 #%%
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from nltk.corpus import stopwords
 from pymongo import MongoClient
 import matplotlib.pyplot as plt
@@ -34,14 +35,31 @@ def text_cleaning(text):
 #%%
 def remove_stops(text):
     stop = stopwords.words('english')
+    if text is None or pd.isna(text):
+        return None
     return ' '.join([word for word in text.split() if word not in (stop)])
 
-
 def pos_tag(text):
+    if text is None or pd.isna(text):
+        return None
     return TextBlob(text).tags
-
+    
 def combine_tags(text):
-    return " ".join(["/".join(text) for text in text])
+    if text is None:
+        return None
+    return " ".join(["/".join(tag) for tag in text])
+
+#%%
+def apply_sent_score(text):
+    sentiment = SentimentIntensityAnalyzer()
+    if text is None or pd.isna(text):
+        return {
+            "neg": None,
+            "neu": None,
+            "pos": None,
+            "compound": None
+        }
+    return sentiment.polarity_scores(text)
 
 
 # %%
@@ -88,6 +106,7 @@ def connect_to_col(
 
 
 #%%
+# [] TODO: Add Sentiment Analyzer 
 def create_google_dataframe(
         col: pymongo.synchronous.collection.Collection,
         cols_to_use: str | list[str] = ['_id', 'author', 'city', 
@@ -164,11 +183,13 @@ def create_google_dataframe(
         
 
 #%%
+# [] TODO: Add Sentiment Analyzer
 def create_from_csv(
         file: str, 
         clean_text: int | bool = 1, 
         remove_stopwords: int | bool = 1,
-        tag_pos: int | bool = 1,
+        pos_tagging: int | bool = 1,
+        combine_pos_tag: int | bool = 1,
         ) -> pd.DataFrame :
     
     df = pd.read_csv(file)
@@ -178,6 +199,11 @@ def create_from_csv(
 
     if remove_stopwords:
         df['text_sans_stop'] = df['text'].apply(remove_stops)
-
     
+    if pos_tagging:
+        df['pos'] = df['review_sans_stop'].apply(pos_tag)
+    
+    if combine_pos_tag:
+        df['pos_combo'] = df['pos'].map(combine_tags)
+        
 # %%
